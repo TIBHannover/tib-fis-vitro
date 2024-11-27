@@ -8,8 +8,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -26,7 +28,6 @@ public class SearchFilter {
     private String to = "";
     private String fromYear = "";
     private String toYear = "";
-    private boolean isPublic = false;
 
     private String min = "0";
     private String max = "2000";
@@ -40,15 +41,15 @@ public class SearchFilter {
     private boolean selected = false;
     private boolean input = false;
     private Map<String, FilterValue> values = new LinkedHashMap<>();
-
     private boolean inputRegex = false;
-
     private boolean facetsRequired;
-
+    private boolean reverseFacetOrder;
     private String type = FILTER;
     private String rangeText = "";
     private String rangeInput = "";
-    private boolean hidden = false;
+    private boolean display = false;
+    private Optional<Locale> locale;
+    private boolean multilingual;
 
     public String getRangeInput() {
         return rangeInput;
@@ -62,8 +63,9 @@ public class SearchFilter {
         return rangeText;
     }
 
-    public SearchFilter(String id) {
+    public SearchFilter(String id, Optional<Locale> locale) {
         this.id = id;
+        this.locale = locale;
     }
 
     public String getName() {
@@ -87,6 +89,13 @@ public class SearchFilter {
     }
 
     public String getField() {
+        if (multilingual) {
+            if (locale.isPresent()) {
+                return locale.get().toLanguageTag() + field;
+            } else {
+                return Locale.getDefault().toLanguageTag() + field;
+            }
+        }
         return field;
     }
 
@@ -272,29 +281,28 @@ public class SearchFilter {
     public void sortValues() {
         List<Entry<String, FilterValue>> list = new LinkedList<>(values.entrySet());
         list.sort(new FilterValueComparator());
-        values = list.stream()
-                .collect(Collectors.toMap(Entry::getKey, Entry::getValue, (a, b) -> b, LinkedHashMap::new));
-    }
-
-    public boolean isPublic() {
-        return isPublic;
-    }
-
-    public void setPublic(boolean isPublic) {
-        this.isPublic = isPublic;
+        values = list.stream().collect(Collectors.toMap(Entry::getKey, Entry::getValue, (a, b) -> b,
+                LinkedHashMap::new));
     }
 
     private class FilterValueComparator implements Comparator<Map.Entry<String, FilterValue>> {
         public int compare(Entry<String, FilterValue> obj1, Entry<String, FilterValue> obj2) {
-            FilterValue filter1 = obj1.getValue();
-            FilterValue filter2 = obj2.getValue();
-            int result = filter1.getOrder().compareTo(filter2.getOrder());
+            FilterValue first = obj1.getValue();
+            FilterValue second = obj2.getValue();
+            // sort by order first
+            int result = first.getOrder().compareTo(second.getOrder());
             if (result == 0) {
                 // order are equal, sort by name
-                return filter1.getName().toLowerCase().compareTo(filter2.getName().toLowerCase());
-            } else {
-                return result;
+                result = first.getName().toLowerCase().compareTo(second.getName().toLowerCase());
+                if (result == 0) {
+                    // names are equal, sort by id
+                    result = first.getId().toLowerCase().compareTo(second.getId().toLowerCase());
+                }
+                if (reverseFacetOrder) {
+                    result = -result;
+                }
             }
+            return result;
         }
     }
 
@@ -316,12 +324,12 @@ public class SearchFilter {
         return true;
     }
 
-    public void setHidden(boolean b) {
-        this.hidden = b;
+    public void setDisplay(boolean b) {
+        this.display = b;
     }
 
-    public boolean isHidden() {
-        return hidden;
+    public boolean isDisplay() {
+        return display;
     }
 
     public int getMoreLimit() {
@@ -330,5 +338,13 @@ public class SearchFilter {
 
     public void setMoreLimit(int moreLimit) {
         this.moreLimit = moreLimit;
+    }
+
+    public void setMulitlingual(boolean multilingual) {
+        this.multilingual = multilingual;
+    }
+
+    public void setReverseFacetOrder(boolean reverseFacetOrder) {
+        this.reverseFacetOrder = reverseFacetOrder;
     }
 }
