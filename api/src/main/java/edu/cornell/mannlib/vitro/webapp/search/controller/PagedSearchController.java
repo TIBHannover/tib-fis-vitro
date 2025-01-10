@@ -266,7 +266,7 @@ public class PagedSearchController extends FreemarkerHttpServlet {
                     log.debug(getSpentTime(startTime) + "ms spent before sorting filterConfigurationsByField values.");
                 }
                 for (Entry<String, SearchFilter> entry : filterConfigurationsByField.entrySet()) {
-                    entry.getValue().sortValues();
+                    entry.getValue().sortValues(vreq.getCollator());
                 }
                 if (log.isDebugEnabled()) {
                     log.debug(getSpentTime(startTime) + "ms spent after sorting filterConfigurationsByField values.");
@@ -371,7 +371,7 @@ public class PagedSearchController extends FreemarkerHttpServlet {
                 FilterValue filterValue = searchFilter.getValue(valueName);
                 if (filterValue == null) {
                     filterValue = new FilterValue(valueName);
-                    filterValue.setDisplay(true);
+                    filterValue.setDisplayed(true);
                     searchFilter.addValue(filterValue);
                 }
                 if (requestFiltersById.containsKey(searchFilter.getId())) {
@@ -516,7 +516,7 @@ public class PagedSearchController extends FreemarkerHttpServlet {
             log.error(String.format("Sort field is not set for '%s'", conf.getId()));
             return;
         }
-        query.addSortField(field, conf.getSortOrder());
+        query.addSortField(field, conf.getSortDirection());
         if (sortOptions.containsKey(conf.getFallback())) {
             addSortField(vreq, query, sortOptions.get(conf.getFallback()), sortOptions, appliedSortOptions);
         }

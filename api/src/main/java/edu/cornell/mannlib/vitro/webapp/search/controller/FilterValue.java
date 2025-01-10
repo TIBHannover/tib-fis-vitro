@@ -6,22 +6,18 @@ public class FilterValue {
 
     private String id;
     private String name = "";
-    private int order;
-
+    private int rank;
     private long count;
-
     private boolean selected = false;
-
     private boolean isDefaultValue;
+    private boolean displayed = false;
 
-    private boolean display = false;
-
-    public boolean isDisplay() {
-        return display;
+    public boolean isDisplayed() {
+        return displayed;
     }
 
-    public void setDisplay(boolean value) {
-        display = value;
+    public void setDisplayed(boolean value) {
+        displayed = value;
     }
 
     public FilterValue(String id) {
@@ -46,13 +42,13 @@ public class FilterValue {
         }
     }
 
-    public Integer getOrder() {
-        return order;
+    public Integer getRank() {
+        return rank;
     }
 
-    public void setOrder(RDFNode rdfNode) {
+    public void setRank(RDFNode rdfNode) {
         if (rdfNode != null) {
-            order = rdfNode.asLiteral().getInt();
+            rank = rdfNode.asLiteral().getInt();
         }
     }
 
@@ -72,7 +68,7 @@ public class FilterValue {
         this.selected = value;
     }
 
-    public boolean getSelected() {
+    public boolean isSelected() {
         return selected;
     }
 

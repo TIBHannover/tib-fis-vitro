@@ -53,12 +53,13 @@ public class SearchFiltering {
 
     private static final String FILTER_QUERY = ""
             + "PREFIX search: <https://vivoweb.org/ontology/vitro-search#>\n"
+            + "PREFIX search-ind:<https://vivoweb.org/ontology/vitro-search-individual/>\n"
             + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
             + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-            + "SELECT ?filter_id ?filter_type ?filter_label ?value_label ?value_id  ?field_name ?public ?filter_order "
-            + "?value_order (STR(?isUriReq) as ?isUri ) ?multivalued ?input ?regex ?facet ?min ?max ?role "
-            + "?value_public ?more_limit ?multilingual ?reverseFacetOrder\n"
-            + "?filterDisplayLimitRole ?valueDisplayLimitRole \n"
+            + "SELECT ?filter_id ?filter_type ?filter_label ?value_label ?value_id  ?field_name ?public ?filter_rank "
+            + "?value_rank (STR(?isUriReq) as ?isUri ) ?multivalued ?input ?regex ?facet ?min ?max ?role "
+            + "?value_public ?more_limit ?multilingual ?isDescending\n"
+            + "?filterDisplayLimitRole ?valueDisplayLimitRole ?sortingObjectType \n"
             + "WHERE {\n"
             + "    ?filter rdf:type search:Filter .\n"
             + "    ?filter rdfs:label ?filter_label .\n"
@@ -71,8 +72,8 @@ public class SearchFiltering {
             + "        ?value rdfs:label ?value_label .\n"
             + "        ?value search:id ?value_id .\n"
             + "        OPTIONAL {"
-            + "            ?value search:order ?v_order .\n"
-            + "            bind(?v_order as ?value_order_found).\n"
+            + "            ?value search:order|search:rank ?v_rank .\n"
+            + "            bind(?v_rank as ?value_rank_found).\n"
             + "        }\n"
             + "        OPTIONAL {\n"
             + "            ?value search:isDefaultForRole ?role .\n"
@@ -91,41 +92,47 @@ public class SearchFiltering {
             + "    OPTIONAL {?filter search:userInput ?input }\n"
             + "    OPTIONAL {?filter search:userInputRegex ?regex }\n"
             + "    OPTIONAL {?filter search:facetResults ?facet }\n"
-            + "    OPTIONAL {?filter search:reverseFacetOrder ?reverseFacetOrder }\n"
+            + "    OPTIONAL {?filter search:reverseFacetOrder ?isDescendingDeprecated }\n"
+            + "    OPTIONAL {"
+            + "        ?filter search:direction search-ind:descending ."
+            + "        BIND(true as ?isDescendingNew)"
+            + "    }\n"
+            + "    OPTIONAL {?filter search:sortValuesBy ?sortingObjectType }\n"
             + "    OPTIONAL {?filter search:from ?min }\n"
             + "    OPTIONAL {?filter search:public ?public }\n"
             + "    OPTIONAL {?filter search:to ?max }\n"
             + "    OPTIONAL {?filter search:moreLimit ?more_limit }\n"
             + "    OPTIONAL {?filter search:limitDisplayTo ?filterDisplayLimitRole . }\n"
             + "    OPTIONAL {\n"
-            + "        ?filter search:order ?f_order \n"
-            + "        bind(?f_order as ?filter_order_found).\n"
+            + "        ?filter search:order|search:rank ?f_rank \n"
+            + "        BIND(?f_rank as ?filter_rank_found).\n"
             + "    }\n"
-            + "    BIND(coalesce(?filter_order_found, 0) as ?filter_order)\n"
-            + "    BIND(coalesce(?value_order_found, 0) as ?value_order)\n"
+            + "    BIND(COALESCE(?filter_rank_found, 0) as ?filter_rank)\n"
+            + "    BIND(COALESCE(?value_rank_found, 0) as ?value_rank)\n"
             + "    BIND(COALESCE(?bind_multilingual, false) as ?multilingual)\n"
-            + "} ORDER BY ?filter_id ?filter_order ?value_order";
+            + "    BIND(COALESCE(?isDescendingNew, ?isDescendingDeprecated, false) as ?isDescending)\n"
+            + "} ORDER BY ?filter_id ?filter_rank ?value_rank";
 
     private static final String FILTER_GROUPS_QUERY = ""
             + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
             + "PREFIX search: <https://vivoweb.org/ontology/vitro-search#>\n"
             + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-            + "SELECT ?group_id (STR(?group_l) AS ?group_label) ?filter_id ?order ?filter_order ?public\n"
+            + "SELECT ?group_id (STR(?group_l) AS ?group_label) ?filter_id ?rank ?filter_rank ?public\n"
             + "?groupDisplayLimitRole\n"
             + "WHERE {\n"
             + "    ?filter_group rdf:type search:FilterGroup .\n"
             + "    ?filter_group search:contains ?filter .\n"
             + "    ?filter_group rdfs:label ?group_l .\n"
             + "    ?filter_group search:id ?group_id .\n"
-            + "    OPTIONAL { ?filter_group search:order ?order .}\n"
+            + "    OPTIONAL {?filter_group search:order|search:rank ?rank .}\n"
             + "    ?filter search:id ?filter_id .\n"
             + "    OPTIONAL {?filter_group search:public ?public }\n"
-            + "    OPTIONAL {?filter search:order ?f_order .\n"
-            + "        BIND(?f_order as ?filter_order_found).\n"
+            + "    OPTIONAL {?filter search:order|search:rank ?f_rank .\n"
+            + "        BIND(?f_rank as ?filter_rank_found).\n"
             + "    }\n"
             + "    OPTIONAL {?filter_group search:limitDisplayTo ?groupDisplayLimitRole .}\n"
-            + "    BIND(coalesce(?filter_order_found, 0) as ?filter_order)\n"
-            + "}  ORDER BY ?order ?group_label ?filter_order";
+            + "    BIND(COALESCE(?filter_rank_found, 0) as ?filter_rank)\n"
+            + "}  ORDER BY ?rank ?group_label ?filter_rank";
 
     private static final String LABEL_QUERY = ""
             + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
@@ -138,8 +145,9 @@ public class SearchFiltering {
             + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
             + "PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>\n"
             + "PREFIX search: <https://vivoweb.org/ontology/vitro-search#> \n"
+            + "PREFIX search-ind:<https://vivoweb.org/ontology/vitro-search-individual/>\n"
             + "SELECT ( STR(?sort_label) as ?label ) ?id ?searchField "
-            + "?multilingual ?isAsc ?sort_order ?fallback ?display ?sortDisplayLimitRole\n"
+            + "?multilingual ?isAscending ?sort_rank ?fallback ?display ?sortDisplayLimitRole\n"
             + "WHERE {\n"
             + "    ?sort rdf:type search:Sort . \n"
             + "    ?sort rdfs:label ?sort_label .\n"
@@ -155,22 +163,25 @@ public class SearchFiltering {
             + "        ?sort search:id ?id .\n"
             + "    }\n"
             + "    OPTIONAL {\n"
-            + "        ?sort search:isAscending ?f_ord  .\n"
-            + "        BIND(?f_ord as ?f_order) .\n"
+            + "        ?sort search:isAscending ?isAscendingDeprecated  .\n"
+            + "    }\n"
+            + "    OPTIONAL {"
+            + "        ?sort search:direction search-ind:ascending ."
+            + "        BIND(true as ?isAscendingNew)"
             + "    }\n"
             + "    OPTIONAL {\n"
             + "        ?sort search:hasFallback/search:id ?fallback .\n"
             + "    }\n"
             + "    OPTIONAL{ "
-            + "        ?sort search:order ?s_order .\n"
-            + "        BIND(?s_order as ?sort_order_found).\n"
+            + "        ?sort search:order|search:rank ?s_rank .\n"
+            + "        BIND(?s_rank as ?sort_rank_found).\n"
             + "    }\n"
             + "    OPTIONAL {?sort search:display ?display }\n"
             + "    OPTIONAL {?sort search:limitDisplayTo ?sortDisplayLimitRole .}\n"
-            + "    BIND(coalesce(?sort_order_found, 0) as ?sort_order)\n"
-            + "    BIND(COALESCE(?f_order, false) as ?isAsc)\n"
+            + "    BIND(coalesce(?sort_rank_found, 0) as ?sort_rank)\n"
+            + "    BIND(COALESCE(?isAscendingNew, ?isAscendingDeprecated, false) as ?isAscending)\n"
             + "    BIND(COALESCE(?bind_multilingual, false) as ?multilingual)\n"
-            + "} ORDER BY ?sort_order ?label ";
+            + "} ORDER BY ?sort_rank ?label ";
 
     protected static void addFiltersToQuery(SearchQuery query, Map<String, SearchFilter> filters) {
         for (SearchFilter searchFilter : filters.values()) {
@@ -183,7 +194,7 @@ public class SearchFiltering {
                 SearchFiltering.addRangeFilter(query, searchFilter);
             }
             for (FilterValue fv : searchFilter.getValues().values()) {
-                if (fv.isDefault() || fv.getSelected()) {
+                if (fv.isDefault() || fv.isSelected()) {
                     if (ANY_VALUE.equals(fv.getId())) {
                         query.addFilterQuery(searchFilter.getField() + ":" + ANY_VALUE );
                     } else {
@@ -276,7 +287,7 @@ public class SearchFiltering {
                     filter = createSearchFilter(filtersByField, solution, resultFilterId, resultFieldName, locale);
                 }
                 if (isDisplay(solution, vreq, "filterDisplayLimitRole", "public")) {
-                    filter.setDisplay(true);
+                    filter.setDisplayed(true);
                 }
                 filter.setType(solution.get("filter_type"));
                 filter.setMulitlingual(solution.get("multilingual").asLiteral().getBoolean());
@@ -288,12 +299,12 @@ public class SearchFiltering {
                 if (!filter.contains(valueId)) {
                     value = new FilterValue(valueId);
                     value.setName(solution.get("value_label"));
-                    value.setOrder(solution.get("value_order"));
+                    value.setRank(solution.get("value_rank"));
                     filter.addValue(value);
                 }
                 value = filter.getValue(valueId);
                 if (isDisplay(solution, vreq, "valueDisplayLimitRole", "value_public")) {
-                    value.setDisplay(true);
+                    value.setDisplayed(true);
                 }
                 RDFNode role = solution.get("role");
                 if (role != null && role.isResource()) {
@@ -355,7 +366,7 @@ public class SearchFiltering {
                 SearchFiltering.addRangeFilter(query, searchFilter);
             }
             for (FilterValue fv : searchFilter.getValues().values()) {
-                if (fv.isDefault() || fv.getSelected()) {
+                if (fv.isDefault()) {
                     query.addFilterQuery(searchFilter.getField() + ":\"" + fv.getId() + "\"");
                 }
             }
@@ -372,9 +383,9 @@ public class SearchFiltering {
         public int compare(Entry<String, SearchFilter> obj1, Entry<String, SearchFilter> obj2) {
             SearchFilter filter1 = obj1.getValue();
             SearchFilter filter2 = obj2.getValue();
-            int result = filter1.getOrder().compareTo(filter2.getOrder());
+            int result = filter1.getRank().compareTo(filter2.getRank());
             if (result == 0) {
-                // order are equal, sort by name
+                // ranks are equal, sort by name
                 return filter1.getName().toLowerCase().compareTo(filter2.getName().toLowerCase());
             } else {
                 return result;
@@ -409,7 +420,7 @@ public class SearchFiltering {
                     groups.put(groupId, group);
                 }
                 if (isDisplay(solution, vreq, "groupDisplayLimitRole", "public")) {
-                    group.setDisplay(true);
+                    group.setDisplayed(true);
                 }
                 group.addFilterId(filterId);
             }
@@ -445,21 +456,21 @@ public class SearchFiltering {
                     if (multilingual != null) {
                         config.setMultilingual(multilingual.asLiteral().getBoolean());
                     }
-                    RDFNode isAsc = solution.get("isAsc");
-                    if (isAsc != null) {
-                        config.setAscOrder(isAsc.asLiteral().getBoolean());
+                    RDFNode isAscending = solution.get("isAscending");
+                    if (isAscending != null) {
+                        config.setSortDirection(isAscending.asLiteral().getBoolean());
                     }
                     RDFNode fallback = solution.get("fallback");
                     if (fallback != null && fallback.isLiteral()) {
                         config.setFallback(fallback.asLiteral().toString());
                     }
-                    RDFNode order = solution.get("sort_order");
-                    if (order != null) {
-                        config.setOrder(order.asLiteral().getInt());
+                    RDFNode rank = solution.get("sort_rank");
+                    if (rank != null) {
+                        config.setRank(rank.asLiteral().getInt());
                     }
                     RDFNode display = solution.get("display");
                     if (display != null) {
-                        config.setDisplay(display.asLiteral().getBoolean());
+                        config.setDisplayed(display.asLiteral().getBoolean());
                     }
                     sortConfigurations.put(id, config);
                 }
@@ -476,7 +487,7 @@ public class SearchFiltering {
         filter = new SearchFilter(resultFilterId, locale);
         filtersByField.put(resultFieldName, filter);
         filter.setName(solution.get("filter_label"));
-        filter.setOrder(solution.get("filter_order"));
+        filter.setRank(solution.get("filter_rank"));
         filter.setType(solution.get("filter_type"));
         if (solution.get("isUri") != null && "true".equals(solution.get("isUri").toString())) {
             filter.setLocalizationRequired(true);
@@ -507,9 +518,14 @@ public class SearchFiltering {
             filter.setFacetsRequired(facet.asLiteral().getBoolean());
         }
 
-        RDFNode reverseFacetOrder = solution.get("reverseFacetOrder");
-        if (reverseFacetOrder != null) {
-            filter.setReverseFacetOrder(reverseFacetOrder.asLiteral().getBoolean());
+        RDFNode descendingOrder = solution.get("isDescending");
+        if (descendingOrder != null && descendingOrder.isLiteral()) {
+            filter.setValueSortDirection(descendingOrder.asLiteral().getBoolean());
+        }
+
+        RDFNode sortOption = solution.get("sortingObjectType");
+        if (sortOption != null && sortOption.isURIResource()) {
+            filter.setSortOption(sortOption.asResource().getURI());
         }
 
         RDFNode moreLimit = solution.get("more_limit");
@@ -577,7 +593,7 @@ public class SearchFiltering {
                             } else {
                                 FilterValue value = new FilterValue(requestValue);
                                 value.setSelected(true);
-                                value.setDisplay(true);
+                                value.setDisplayed(true);
                                 filter.addValue(value);
                             }
                         }
