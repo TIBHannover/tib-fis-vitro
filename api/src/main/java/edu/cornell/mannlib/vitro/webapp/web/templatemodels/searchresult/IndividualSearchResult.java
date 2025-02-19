@@ -29,7 +29,8 @@ public class IndividualSearchResult extends BaseTemplateModel {
     protected final Individual individual;
 
     public String getThumbUrl() {
-        return individual.getThumbUrl();
+        String thumbUrl = individual.getThumbUrl();
+        return thumbUrl == null ? null : getUrl(thumbUrl);
     }
 
     public IndividualSearchResult(Individual individual, VitroRequest vreq) {
